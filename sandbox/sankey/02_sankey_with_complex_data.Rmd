@@ -1,0 +1,156 @@
+---
+title: "Sankey Diagrams With Complex Data"
+output: 
+  cleanrmd::html_document_clean:
+    theme: almond
+---
+
+```{r set global chunks, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE, message = FALSE
+)
+```
+
+```{r load libraries}
+library(tidyverse)
+library(datasets)
+library(plotly)
+library(gt)
+library(glue)
+library(stringr)
+library(DT)
+library(purrr)
+```
+
+# Introduction
+
+In this set of markdown documents we derive the basics of how our Sankey diagram function will work. In this document we go over how to deal with more complicated data sets. In the first of these notes we described how our function deals with simple data sets.
+
+Suppose we have outcome data for a collection of 100 student. The students enrolled in either `class1` or `class2`. They were assigned a grade of `A`, `B`, or `C`, and they had an outcome of `retained`, `dropped`, `stopped`, or `graduated`. 
+
+```{r}
+simple_df <- tibble(
+  person_id = sample(1:999999, 100),
+  class = sample(c('class1', 'class2'), 100, replace = TRUE),
+  grade = sample(c('A', 'B', 'C'), 100, replace = TRUE),
+  outcome = sample(c('retained', 'dropped', 'stopped', 'graduated'), 100, replace = TRUE)
+) %>% 
+  mutate(person_id = str_pad(person_id, 8, pad = '0'))
+
+DT::datatable(simple_df)
+```
+
+Now compare this to a more complex data set.
+
+```{r}
+ipeds_re <- c('non_resident_alien', 'race_ethnicity_unknown', 'black_non_hispanic',
+              'american_indian_or_alaskan_native', 'asian_or_pacific_islander',
+              'hispanic', 'white_non_hispanic')
+student_type <- c('ipeds_first_time', 'continuing', 'returning', 'transfer', 'graduate', 'ut_first_time')
+
+complex_df <- tibble(
+  person_id = sample(1:999999, 1000),
+  student_type = sample(student_type, 1000, replace = TRUE),
+  ipeds_race_ethn = sample(ipeds_re, 1000, replace = TRUE),
+  college = sample(c('HS', 'BS', 'HU', 'SC', 'LR', 'ED'), 1000, replace = TRUE),
+  gpa = sample(c('high', 'medium', 'low'), 1000, replace = TRUE),
+  club = sample(c(TRUE, FALSE), 1000, replace = TRUE),
+  outcome = sample(c('retained', 'dropped', 'stopped', 'graduated'), 1000, replace = TRUE)
+) %>% 
+  mutate(person_id = str_pad(person_id, 8, pad = '0'))
+
+DT::datatable(complex_df)
+```
+
+We have to identify two pieces of information in each data set.
+
+- Which field represents the population?
+- Which level do each of the fields belong to?
+
+For `simple_df` we have the following.
+
+- population = person_id
+- number of levels = 3
+- level 1 = class
+- level 2 = grade
+- level 3 = outcome
+
+For `complex_df` we have
+
+- population = person_id
+- number of levels = 3
+- level 1 = student_type, ipeds_race_ethn
+- level 2 = college, gpa
+- level 3 = club
+- level 4 = outcome
+
+The main difference between `complex_df` and `simple_df` is that `complex_df` has multiple segments for a given level. So we just need a function to consolidate the multiple segments into single segmenting field.
+
+## Segment Reduction
+
+Create a named list consisting of the segments that belong to each level.
+
+```{r}
+levels <- list(c('student_type', 'ipeds_race_ethn'),
+                    c('college', 'gpa'),
+                    c('club'),
+                    c('outcome')
+                    )
+
+names(levels) <- purrr::map(1:4, function(x) paste0('level', '_', x))
+
+levels
+```
+
+Now we use `{purrr}` to collapse each of those segments to a single segmenting field, and then we join each of those data frames back together to create a single data frame with each of the new, consolidated fields. We do this with the following function.
+
+
+```{r}
+collapse_levels <- function(input_df, level_vec, levels) {
+  # This function collapses a collection of segmenting fields into a single field.
+  # the field name comes from the named list.
+  # TODO: Convert the input to a named list.
+  # TODO: What does levels consist of?
+  # TODO: What is the vector levels? Which is which. This is not clear.
+  output_df <- input_df %>% 
+    unite( {{ level_vec }}, all_of(levels), sep = '_._') %>% 
+    select(person_id, {{ level_vec }})
+  
+  return(output_df)
+}
+```
+
+
+```{r}
+#produce a new data frame for each level. The data frame will be two columns person_id, and the level.
+output_list <- map2(names(levels), levels, ~ collapse_levels(complex_df, {{ .x }} , .y))
+
+# join the 4 data frames together.
+reduced_complexity_df <- output_list %>% 
+  purrr::reduce(left_join, by = 'person_id')
+```
+
+```{r}
+datatable(reduced_complexity_df)
+```
+
+The function to do all of this is
+```{r}
+# TODO: Write a function
+
+reduce_complexity <- function(input_df, levels) {
+  # Step 1: collapse levels 
+  # use the function to do this one you have the communication with the named list worked out.
+  
+  ## Step 2: Make the list.
+  ## Something like this will do it.
+  #output_list <- map2(names(levels), levels, ~ collapse_levels(complex_df, {{ .x }} , .y))
+  
+  ## Step 3: Join everything on person_id
+  # reduced_complexity_df <- output_list %>% 
+  #purrr::reduce(left_join, by = 'person_id')
+}
+
+```
+
+
