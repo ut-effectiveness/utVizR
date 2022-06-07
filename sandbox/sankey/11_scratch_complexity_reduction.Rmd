@@ -1,0 +1,161 @@
+---
+title: "Sankey Diagrams"
+output: 
+  cleanrmd::html_document_clean:
+    theme: almond
+---
+
+```{r set global chunks, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE, message = FALSE
+)
+```
+
+```{r load libraries}
+library(tidyverse)
+library(datasets)
+library(plotly)
+library(gt)
+library(glue)
+library(stringr)
+library(DT)
+library(purrr)
+```
+
+# Data Model
+
+In this first section we discuss the structure our data frame should have to serve as the input to our Sankey/Subburst chart. The following data set shows outcome data for a collection of 100 student. The students enrolled in either `class1` or `class2`. They were assigned a grade of `A`, `B`, or `C`, and they had an outcome of `retained`, `dropped`, `stopped`, or `graduated`. 
+
+```{r}
+simple_class_df <- tibble(
+  person_id = sample(1:999999, 100),
+  class = sample(c('class1', 'class2'), 100, replace = TRUE),
+  grade = sample(c('A', 'B', 'C'), 100, replace = TRUE),
+  outcome = sample(c('retained', 'dropped', 'stopped', 'graduated'), 100, replace = TRUE)
+) %>% 
+  mutate(person_id = str_pad(person_id, 8, pad = '0'))
+
+DT::datatable(simple_class_df)
+```
+
+
+Now compare this to a similarly structured, but more complex data set. 
+
+```{r}
+ipeds_re <- c('non_resident_alien', 'race_ethnicity_unknown', 'black_non_hispanic',
+              'american_indian_or_alaskan_native', 'asian_or_pacific_islander',
+              'hispanic', 'white_non_hispanic')
+student_type <- c('ipeds_first_time', 'continuing', 'returning', 'transfer', 'graduate', 'ut_first_time')
+
+complex_comparison_df <- tibble(
+  person_id = sample(1:999999, 1000),
+  student_type = sample(student_type, 1000, replace = TRUE),
+  ipeds_race_ethn = sample(ipeds_re, 1000, replace = TRUE),
+  college = sample(c('HS', 'BS', 'HU', 'SC', 'LR', 'ED'), 1000, replace = TRUE),
+  gpa = sample(c('high', 'medium', 'low'), 1000, replace = TRUE),
+  club = sample(c(TRUE, FALSE), 1000, replace = TRUE),
+  outcome = sample(c('retained', 'dropped', 'stopped', 'graduated'), 1000, replace = TRUE)
+) %>% 
+  mutate(person_id = str_pad(person_id, 8, pad = '0'))
+
+DT::datatable(complex_comparison_df)
+```
+
+If we want to produce a Sankey chart from either of these data we need to know what level each of the attribute columns should belong to. So if we are going to create a function `ut_sankey`, then we are going to need a couple input parameters. 
+
+- Which field represents the population?
+- Which level do each of the fields belong to?
+
+For `simple_class_df` we have the following.
+
+- population = person_id
+- number of levels = 3
+- level 1 = class
+- level 2 = grade
+- level 3 = outcome
+
+For `complex_comparison_df` we have
+
+- population = person_id
+- number of levels = 3
+- level 1 = student_type, ipeds_race_ethn
+- level 2 = college, gpa
+- level 3 = club
+- level 4 = outcome
+
+## The simple case
+
+### Reducing from the complex to the simple.
+
+For this step we want to reduce the complex case to the simple case. We do this by combining the multiple segments for our levels into a single segment. What would this look like?
+
+```{r}
+complex_reduction <- complex_comparison_df %>% 
+  unite(level_1, c('student_type', 'ipeds_race_ethn'), sep = '__') %>% 
+  unite(level_2, c('college', 'gpa'), sep = '__') %>% 
+  unite(level_3, c('club'), sep = '__') %>% 
+  unite(level_4, c('outcome'), sep = '__')
+```
+
+This is easy to do. The only complication to making this into a function is knowing how many levels there are. But we can probably get around this with `{purrr}`.
+
+```{r}
+levels_vec <- purrr::map(1:4, function(x) paste0('level', '_', x))
+
+levels <- list(c('student_type', 'ipeds_race_ethn'),
+                    c('college', 'gpa'),
+                    c('club'),
+                    c('outcome')
+                    )
+
+output_list <- map2(levels_vec, levels, ~ unite(complex_comparison_df, {{ .x }} , .y))
+```
+
+This is not quite what I want the purrr function to do. I want it to take just `person_id` and the level. I think we will have to write a function to do this.
+
+```{r}
+collapse_levels <- function(input_df, level_vec, levels) {
+  
+  output_df <- input_df %>% 
+    unite({{ level_vec }}, all_of(levels), sep = '_._') %>% 
+    select(person_id, {{ level_vec }})
+  
+  return(output_df)
+}
+```
+
+```{r}
+collapse_levels(complex_comparison_df, 'level_1', c('student_type', 'ipeds_race_ethn') )
+```
+
+Now lets feed this back into the our `purrr` workflow.
+
+```{r}
+output_list2 <- map2(levels_vec, levels, ~ collapse_levels(complex_comparison_df, {{ .x }} , .y))
+```
+
+So now that we have all this, what does the workflow look like?
+
+We first define the names of the levels we are going to use and which of the fields we want to collapse. It is probably easiest if we define this as a named list.
+
+```{r}
+levels <- list(c('student_type', 'ipeds_race_ethn'),
+                    c('college', 'gpa'),
+                    c('club'),
+                    c('outcome')
+                    )
+
+names(levels) <- purrr::map(1:4, function(x) paste0('level', '_', x))
+
+output_list <- map2(names(levels), levels, ~ collapse_levels(complex_comparison_df, {{ .x }} , .y))
+
+reduced_complexity_df <- output_list %>% 
+  purrr::reduce(left_join, by = 'person_id')
+```
+
+
+
+
+
+
+
