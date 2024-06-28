@@ -1,8 +1,13 @@
-#' plot_sum_regression_skeleton() : skeleton function to create retention regression plot for
+#' plot_sum_regression_skeleton() : skeleton function to create sum (fte) regression plot for
 #' "utMetrics Dashboard" shiny app
 #'
+#' This function is a skeleton for creating a plot to visualize sum regression over time. It fits
+#' a linear regression model to the provided data and plots the regression line along with the data
+#' points. The plot also includes the predicted count for the next year, and labels for the residuals
+#' and prediction.
+#'
 #' @param .data a data frame cleaned up from df_sum_metric_values.rda
-#' @param list_name a name list found in df_rate_metric_values.rda
+#' @param list_name a name list found in df_sum_metric_values.rda
 #'
 #' @return a plot
 #' @export
@@ -49,9 +54,9 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
         y = sum,
         color = graph_name)
   ) +
-    geom_line() +
-    geom_point() +
-    geom_smooth(
+    ggplot2::geom_line() +
+    ggplot2::geom_point() +
+    ggplot2::geom_smooth(
       method = "lm",
       se = FALSE,
       color = "#003058"
@@ -66,13 +71,13 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
       segment.size = 0.5
     ) +
     # Predict for next year
-    geom_point(
+    ggplot2::geom_point(
       data = prediction_label,
       aes(y = sum),
       color = "#003058",
       size = 3
     ) +
-    geom_segment(
+    ggplot2::geom_segment(
       aes(
         x = max(year),
         y = predict(lm_model, newdata = data.frame(year = max(year))),
@@ -82,8 +87,8 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
       color = "#003058",
       linetype = "dashed"
     ) +
-    geom_segment(
-      aes(
+    ggplot2::geom_segment(
+      ggplot2::aes(
         x = year,
         xend = year,
         y = sum,
@@ -93,7 +98,7 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
       alpha = 0.5
     ) +
     ggrepel::geom_text_repel(
-      aes(
+      ggplot2::aes(
         x = year,
         y = sum - residuals,
         label = round(residuals, 2)
@@ -101,9 +106,9 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
       color = "#003058",
       size = 3
     ) +
-    geom_text(
+    ggplot2::geom_text(
       data = prediction_label,
-      aes(
+      ggplot2::aes(
         x = year,
         y = sum,
         label = round(sum, 2)
@@ -113,14 +118,14 @@ plot_sum_regression_skeleton <- function(.data, list_name) {
       hjust = 0.8,
       size = 3
     )  +
-    scale_y_continuous(limits = c(min, max), labels = scales::label_comma(1))+
-    labs(
+    ggplot2::scale_y_continuous(limits = c(min, max), labels = scales::label_comma(1))+
+    ggplot2::labs(
       title = title,
       x = x_axis_name,
       y = y_axis_name,
       color = legend_name
     ) +
-    theme_minimal()
+    ggplot2::theme_minimal()
   p <- p + theme(legend.position = "none")
 
   print(p)

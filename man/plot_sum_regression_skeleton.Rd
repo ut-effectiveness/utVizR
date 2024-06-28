@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_sum_regression_skeleton.R
 \name{plot_sum_regression_skeleton}
 \alias{plot_sum_regression_skeleton}
-\title{plot_sum_regression_skeleton() : skeleton function to create retention regression plot for
+\title{plot_sum_regression_skeleton() : skeleton function to create sum (fte) regression plot for
 "utMetrics Dashboard" shiny app}
 \usage{
 plot_sum_regression_skeleton(.data, list_name)
@@ -10,12 +10,14 @@ plot_sum_regression_skeleton(.data, list_name)
 \arguments{
 \item{.data}{a data frame cleaned up from df_sum_metric_values.rda}
 
-\item{list_name}{a name list found in df_rate_metric_values.rda}
+\item{list_name}{a name list found in df_sum_metric_values.rda}
 }
 \value{
 a plot
 }
 \description{
-plot_sum_regression_skeleton() : skeleton function to create retention regression plot for
-"utMetrics Dashboard" shiny app
+This function is a skeleton for creating a plot to visualize sum regression over time. It fits
+a linear regression model to the provided data and plots the regression line along with the data
+points. The plot also includes the predicted count for the next year, and labels for the residuals
+and prediction.
 }
