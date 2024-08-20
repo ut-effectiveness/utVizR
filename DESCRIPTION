@@ -26,5 +26,5 @@ Suggests:
     webshot2,
     knitr,
     rmarkdown
-URL: https://github.com/ut-effectiveness/utVizR
+URL: https://github.com/ut-effectiveness/utVizR, https://ut-effectiveness.github.io/utVizR/
 BugReports: https://github.com/ut-effectiveness/utVizR/issues
